@@ -111,9 +111,9 @@ public class TCPServer : MonoBehaviour
                 Debug.LogWarning("No hay clientes conectados para recibir el mensaje.");
             }
 
-            foreach (TcpClient client in clients.ToArray()) // Copia para evitar modificación concurrente
+            foreach (TcpClient client in clients.ToArray())
             {
-                if (client == senderClient) continue; // no repetir a quien lo mandó
+                if (client == senderClient) continue;
 
                 try
                 {

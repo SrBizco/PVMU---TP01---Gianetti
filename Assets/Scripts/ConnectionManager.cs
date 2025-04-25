@@ -42,7 +42,7 @@ public class ConnectionManager : MonoBehaviour
         int port = int.Parse(portInputField.text);
 
         var clientHandler = tcpClientObject.GetComponent<TCPClientHandler>();
-        clientHandler.ConnectToServer(ip, port);  // Asignamos la IP y el puerto aquí
+        clientHandler.ConnectToServer(ip, port);
 
         tcpClientObject.SetActive(true);
 
