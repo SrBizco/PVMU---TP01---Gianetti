@@ -8,6 +8,8 @@ public class TCPClientHandler : MonoBehaviour
 {
     public string serverIP = "127.0.0.1";
     public int serverPort = 7777;
+    public ChatUIManager chatUIManager;
+
     private TcpClient client;
     private NetworkStream stream;
     private Thread receiveThread;
@@ -26,7 +28,9 @@ public class TCPClientHandler : MonoBehaviour
             stream = client.GetStream();
             isConnected = true;
             Debug.Log("Conectado al servidor");
+
             receiveThread = new Thread(ReceiveMessages);
+            receiveThread.IsBackground = true;
             receiveThread.Start();
         }
         catch (Exception e)
@@ -39,8 +43,16 @@ public class TCPClientHandler : MonoBehaviour
     {
         if (!isConnected) return;
 
-        byte[] data = Encoding.UTF8.GetBytes(msg);
+        byte[] data = Encoding.UTF8.GetBytes($"Cliente: {msg}");
         stream.Write(data, 0, data.Length);
+
+        Debug.Log("Mensaje enviado al servidor: " + msg);
+
+        // Mostrar localmente también
+        if (chatUIManager != null)
+        {
+            MainThreadDispatcher.Enqueue(() => chatUIManager.AppendMessage("Tú: " + msg));
+        }
     }
 
     private void ReceiveMessages()
@@ -52,13 +64,27 @@ public class TCPClientHandler : MonoBehaviour
             try
             {
                 int bytesRead = stream.Read(buffer, 0, buffer.Length);
-                if (bytesRead == 0) break;
+                if (bytesRead == 0)
+                {
+                    Debug.LogWarning("Stream cerrado por el servidor.");
+                    break;
+                }
 
                 string msg = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                Debug.Log("Mensaje recibido del servidor: " + msg);
+                Debug.Log("Cliente recibió mensaje del servidor: " + msg);
+
+                if (chatUIManager != null)
+                {
+                    MainThreadDispatcher.Enqueue(() =>
+                    {
+                        Debug.Log("Cliente encola mensaje en hilo principal: " + msg);
+                        chatUIManager.AppendMessage(msg);
+                    });
+                }
             }
-            catch
+            catch (Exception ex)
             {
+                Debug.LogError("Error recibiendo mensaje en cliente: " + ex.Message);
                 break;
             }
         }
