@@ -6,29 +6,35 @@ using UnityEngine;
 
 public class TCPClientHandler : MonoBehaviour
 {
-    public string serverIP = "127.0.0.1";
-    public int serverPort = 7777;
-    public ChatUIManager chatUIManager;
-
+    // Estas variables ahora las vamos a manejar desde ConnectionManager
     private TcpClient client;
     private NetworkStream stream;
     private Thread receiveThread;
     private bool isConnected = false;
 
+    // Estas variables serán asignadas a través del ConnectionManager
+    private string serverIP;
+    private int serverPort;
+    public ChatUIManager chatUIManager;
+
     void Start()
     {
-        ConnectToServer();
+        // En este caso no inicializamos nada en Start porque lo manejamos en ConnectionManager
     }
 
-    public void ConnectToServer()
+    public void ConnectToServer(string ip, int port)
     {
+        serverIP = ip;
+        serverPort = port;
+
         try
         {
             client = new TcpClient(serverIP, serverPort);
             stream = client.GetStream();
             isConnected = true;
-            Debug.Log("Conectado al servidor");
+            Debug.Log("Conectado al servidor en " + serverIP + ":" + serverPort);
 
+            // Comenzamos el hilo de recepción de mensajes
             receiveThread = new Thread(ReceiveMessages);
             receiveThread.IsBackground = true;
             receiveThread.Start();

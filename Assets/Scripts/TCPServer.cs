@@ -64,13 +64,11 @@ public class TCPServer : MonoBehaviour
                 string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
                 Debug.Log("Mensaje recibido de cliente: " + message);
 
-                // Enviar al hilo principal para actualizar la UI
                 if (chatUIManager != null)
                 {
                     MainThreadDispatcher.Enqueue(() => chatUIManager.AppendMessage(message));
                 }
 
-                // Reenviar a todos los clientes excepto al cliente que envió el mensaje
                 BroadcastMessage(message, client);
             }
             catch (Exception e)
@@ -91,45 +89,52 @@ public class TCPServer : MonoBehaviour
     public void SendMessageFromHost(string message)
     {
         string fullMessage = $"Host: {message}";
-
         Debug.Log("Mensaje enviado desde el host: " + fullMessage);
 
-        // Mostrar en UI local del host
         if (chatUIManager != null)
         {
             MainThreadDispatcher.Enqueue(() => chatUIManager.AppendMessage(fullMessage));
         }
 
-        // Enviar a todos los clientes
         BroadcastMessage(fullMessage);
     }
 
     private void BroadcastMessage(string msg, TcpClient senderClient = null)
     {
         Debug.Log("Broadcasting mensaje: " + msg);
-
         byte[] data = Encoding.UTF8.GetBytes(msg);
 
         lock (clients)
         {
-            foreach (TcpClient client in clients)
+            if (clients.Count == 0)
             {
-                if (client == senderClient) continue;
+                Debug.LogWarning("No hay clientes conectados para recibir el mensaje.");
+            }
+
+            foreach (TcpClient client in clients.ToArray()) // Copia para evitar modificación concurrente
+            {
+                if (client == senderClient) continue; // no repetir a quien lo mandó
 
                 try
                 {
-                    client.GetStream().Write(data, 0, data.Length);
+                    if (client.Connected && client.GetStream().CanWrite)
+                    {
+                        Debug.Log("Enviando mensaje a cliente: " + msg);
+                        client.GetStream().Write(data, 0, data.Length);
+                    }
+                    else
+                    {
+                        Debug.LogWarning("Cliente no conectado o stream no escribible, eliminando.");
+                        clients.Remove(client);
+                        client.Close();
+                    }
                 }
                 catch (Exception e)
                 {
-                    Debug.LogWarning("No se pudo enviar a cliente: " + e.Message);
+                    Debug.LogError("Error enviando mensaje a cliente: " + e.Message);
+                    clients.Remove(client);
+                    client.Close();
                 }
-            }
-
-            // También enviar el mensaje al host, que es el servidor
-            if (senderClient == null && chatUIManager != null)
-            {
-                MainThreadDispatcher.Enqueue(() => chatUIManager.AppendMessage(msg)); // Mostrar en la UI del host
             }
         }
     }
